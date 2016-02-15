@@ -310,7 +310,7 @@ public class TestTimelineClient {
     }
     doReturn(response).when(spyTimelineWriter)
         .doPostingObject(any(TimelineEntities.class), any(String.class));
-    when(response.getClientResponseStatus()).thenReturn(status);
+    when(response.getStatusInfo()).thenReturn(status);
     TimelinePutResponse.TimelinePutError error =
         new TimelinePutResponse.TimelinePutError();
     error.setEntityId("test entity id");
@@ -336,7 +336,7 @@ public class TestTimelineClient {
     }
     doReturn(response).when(spyTimelineWriter)
         .doPostingObject(any(TimelineDomain.class), any(String.class));
-    when(response.getClientResponseStatus()).thenReturn(status);
+    when(response.getStatusInfo()).thenReturn(status);
     return response;
   }
 

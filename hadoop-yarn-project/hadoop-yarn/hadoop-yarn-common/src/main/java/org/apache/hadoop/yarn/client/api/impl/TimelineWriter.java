@@ -109,7 +109,8 @@ public abstract class TimelineWriter {
       throw new IOException(ie);
     }
     if (resp == null ||
-        resp.getClientResponseStatus() != ClientResponse.Status.OK) {
+        resp.getStatusInfo().getStatusCode()
+            != ClientResponse.Status.OK.getStatusCode()) {
       String msg =
           "Failed to get the response from the timeline server.";
       LOG.error(msg);

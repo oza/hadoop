@@ -52,6 +52,7 @@ import org.apache.hadoop.yarn.server.timeline.security.TimelineACLsManager;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineAbout;
 import org.apache.hadoop.yarn.util.timeline.TimelineUtils;
 import org.apache.hadoop.yarn.webapp.GenericExceptionHandler;
+import org.apache.hadoop.yarn.webapp.GuiceServletConfig;
 import org.apache.hadoop.yarn.webapp.JerseyTestBase;
 import org.apache.hadoop.yarn.webapp.WebServicesTestUtils;
 import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
@@ -60,15 +61,14 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import com.google.inject.Guice;
-import com.google.inject.Injector;
 import com.google.inject.Singleton;
-import com.google.inject.servlet.GuiceServletContextListener;
 import com.google.inject.servlet.ServletModule;
 import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.ClientResponse.Status;
@@ -108,6 +108,7 @@ public class TestAHSWebServices extends JerseyTestBase {
     };
     historyClientService.init(conf);
     historyClientService.start();
+    GuiceServletConfig.injector = Guice.createInjector(new WebServletModule());
   }
 
   @AfterClass
@@ -122,8 +123,7 @@ public class TestAHSWebServices extends JerseyTestBase {
     return Arrays.asList(new Object[][] { { 0 }, { 1 } });
   }
 
-  private Injector injector = Guice.createInjector(new ServletModule() {
-
+  private static class WebServletModule extends ServletModule {
     @Override
     protected void configureServlets() {
       bind(JAXBContextResolver.class);
@@ -133,7 +133,13 @@ public class TestAHSWebServices extends JerseyTestBase {
       serve("/*").with(GuiceContainer.class);
       filter("/*").through(TestSimpleAuthFilter.class);
     }
-  });
+  }
+
+  @Before
+  public void setUp() throws Exception {
+    super.setUp();
+    GuiceServletConfig.injector = Guice.createInjector(new WebServletModule());
+  }
 
   @Singleton
   public static class TestSimpleAuthFilter extends AuthenticationFilter {
@@ -145,14 +151,6 @@ public class TestAHSWebServices extends JerseyTestBase {
       properties.put(AuthenticationFilter.AUTH_TYPE, "simple");
       properties.put(PseudoAuthenticationHandler.ANONYMOUS_ALLOWED, "false");
       return properties;
-    }
-  }
-
-  public class GuiceServletConfig extends GuiceServletContextListener {
-
-    @Override
-    protected Injector getInjector() {
-      return injector;
     }
   }
 
@@ -177,8 +175,9 @@ public class TestAHSWebServices extends JerseyTestBase {
           .queryParam("user.name", USERS[round])
           .accept(MediaType.APPLICATION_JSON)
           .get(ClientResponse.class);
-    assertEquals("404 not found expected", Status.NOT_FOUND,
-        response.getClientResponseStatus());
+    assertEquals("404 not found expected",
+        Status.NOT_FOUND.getStatusCode(),
+        response.getStatusInfo().getStatusCode());
   }
 
   @Test
@@ -195,11 +194,14 @@ public class TestAHSWebServices extends JerseyTestBase {
           .accept(MediaType.APPLICATION_JSON)
           .get(ClientResponse.class);
     if (round == 1) {
-      assertEquals(Status.FORBIDDEN, response.getClientResponseStatus());
+      assertEquals(
+          Status.FORBIDDEN.getStatusCode(),
+          response.getStatusInfo().getStatusCode());
       return;
     }
-    assertEquals("404 not found expected", Status.NOT_FOUND,
-            response.getClientResponseStatus());
+    assertEquals("404 not found expected",
+        Status.NOT_FOUND.getStatusCode(),
+        response.getStatusInfo().getStatusCode());
   }
 
   @Test
@@ -220,11 +222,13 @@ public class TestAHSWebServices extends JerseyTestBase {
           .get(ClientResponse.class);
     if (round == 1) {
       assertEquals(
-          Status.FORBIDDEN, response.getClientResponseStatus());
+          Status.FORBIDDEN.getStatusCode(),
+          response.getStatusInfo().getStatusCode());
       return;
     }
-    assertEquals("404 not found expected", Status.NOT_FOUND,
-            response.getClientResponseStatus());
+    assertEquals("404 not found expected",
+        Status.NOT_FOUND.getStatusCode(),
+        response.getStatusInfo().getStatusCode());
   }
 
   @Test
@@ -239,7 +243,8 @@ public class TestAHSWebServices extends JerseyTestBase {
       fail("should have thrown exception on invalid uri");
     } catch (UniformInterfaceException ue) {
       ClientResponse response = ue.getResponse();
-      assertEquals(Status.NOT_FOUND, response.getClientResponseStatus());
+      assertEquals(Status.NOT_FOUND.getStatusCode(),
+          response.getStatusInfo().getStatusCode());
 
       WebServicesTestUtils.checkStringMatch(
         "error string exists and shouldn't", "", responseStr);
@@ -256,7 +261,8 @@ public class TestAHSWebServices extends JerseyTestBase {
       fail("should have thrown exception on invalid uri");
     } catch (UniformInterfaceException ue) {
       ClientResponse response = ue.getResponse();
-      assertEquals(Status.NOT_FOUND, response.getClientResponseStatus());
+      assertEquals(Status.NOT_FOUND.getStatusCode(),
+          response.getStatusInfo().getStatusCode());
       WebServicesTestUtils.checkStringMatch(
         "error string exists and shouldn't", "", responseStr);
     }
@@ -274,8 +280,8 @@ public class TestAHSWebServices extends JerseyTestBase {
       fail("should have thrown exception on invalid uri");
     } catch (UniformInterfaceException ue) {
       ClientResponse response = ue.getResponse();
-      assertEquals(Status.INTERNAL_SERVER_ERROR,
-        response.getClientResponseStatus());
+      assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(),
+        response.getStatusInfo().getStatusCode());
       WebServicesTestUtils.checkStringMatch(
         "error string exists and shouldn't", "", responseStr);
     }
@@ -362,8 +368,8 @@ public class TestAHSWebServices extends JerseyTestBase {
           .queryParam("user.name", USERS[round])
           .accept(MediaType.APPLICATION_JSON).get(ClientResponse.class);
     if (round == 1) {
-      assertEquals(
-          Status.FORBIDDEN, response.getClientResponseStatus());
+      assertEquals(Status.FORBIDDEN.getStatusCode(),
+          response.getStatusInfo().getStatusCode());
       return;
     }
     assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getType());
@@ -389,8 +395,8 @@ public class TestAHSWebServices extends JerseyTestBase {
           .accept(MediaType.APPLICATION_JSON)
           .get(ClientResponse.class);
     if (round == 1) {
-      assertEquals(
-          Status.FORBIDDEN, response.getClientResponseStatus());
+      assertEquals(Status.FORBIDDEN.getStatusCode(),
+          response.getStatusInfo().getStatusCode());
       return;
     }
     assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getType());
@@ -419,8 +425,8 @@ public class TestAHSWebServices extends JerseyTestBase {
           .queryParam("user.name", USERS[round])
           .accept(MediaType.APPLICATION_JSON).get(ClientResponse.class);
     if (round == 1) {
-      assertEquals(
-          Status.FORBIDDEN, response.getClientResponseStatus());
+      assertEquals(Status.FORBIDDEN.getStatusCode(),
+          response.getStatusInfo().getStatusCode());
       return;
     }
     assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getType());
@@ -448,8 +454,8 @@ public class TestAHSWebServices extends JerseyTestBase {
           .accept(MediaType.APPLICATION_JSON)
           .get(ClientResponse.class);
     if (round == 1) {
-      assertEquals(
-          Status.FORBIDDEN, response.getClientResponseStatus());
+      assertEquals(Status.FORBIDDEN.getStatusCode(),
+          response.getStatusInfo().getStatusCode());
       return;
     }
     assertEquals(MediaType.APPLICATION_JSON_TYPE, response.getType());
